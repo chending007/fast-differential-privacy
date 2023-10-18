@@ -51,6 +51,7 @@ class PrivacyEngine(object):
         clipping_style='all-layer',
         num_GPUs=1,
         torch_seed_is_fixed=False,
+        noise_generator=None,
         **unused_kwargs,
     ):
 
@@ -137,6 +138,7 @@ class PrivacyEngine(object):
         self.eps_error = eps_error
         self.accounting_mode = accounting_mode
         self.record_snr = record_snr
+        self.noise_generator = noise_generator
 
         # Internals.
         self.steps = 0  # Tracks privacy spending.
@@ -350,7 +352,14 @@ class PrivacyEngine(object):
 
             if self.record_snr:
                 signals.append(param.grad.reshape(-1).norm(2))
-            if self.noise_multiplier > 0 and self.max_grad_norm > 0:
+            if self.noise_generator is not None:
+                param.grad += self.noise_generator.generate_noise(
+                    size=param.size(),
+                    device=param.device,
+                    dtype=param.dtype,
+                )
+                pass
+            elif self.noise_multiplier > 0 and self.max_grad_norm > 0:
                 param.grad += torch.normal(
                     mean=0,
                     std=param.noise,
